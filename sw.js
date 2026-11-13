@@ -1,6 +1,6 @@
 // Network-first for the page itself, so a new version shows up on the next open when online.
 // Everything is cached as a fallback, so the app still works offline.
-const CACHE = 'bitdrill-v3';
+const CACHE = 'bitdrill-v4';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

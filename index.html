@@ -153,6 +153,18 @@ td.n{text-align:right;font-family:var(--mono)}
     <div class="row between" style="margin-top:10px"><span>Daily goal</span>
       <select id="goalSel"><option>10</option><option>20</option><option>30</option><option>50</option></select></div>
   </div>
+
+  <h2>Your data</h2>
+  <div class="card">
+    <div class="row between small"><span>Saved on this device</span><span class="dim" id="storeStatus">checking…</span></div>
+    <p class="dim small" style="margin-top:8px">Progress, settings and the question you're on are saved after every answer. A backup file lets you move it to another device or restore it after clearing the browser.</p>
+    <div class="grid2" style="margin-top:10px">
+      <button class="btn" id="exportBtn">Download backup</button>
+      <button class="btn" id="importBtn">Restore backup</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+  </div>
+  <p class="dim small" style="text-align:center;margin-top:18px" id="versionLine"></p>
 </section>
 
 <!-- PLAY -->
@@ -320,7 +332,8 @@ const powers = n => { const p = []; for (let i = W - 1; i >= 0; i--) if (n & (1 
 
 /* ---------- storage (best effort) ---------- */
 const KEY = 'bitdrill.v1';
-const DEF = { days:{}, types:{}, best:0, hints:true, goal:20, rec:{}, mastered:{}, sel:'l1', unlockAll:false };
+const APP_VERSION = '4 · 2026-11-13';
+const DEF = { days:{}, types:{}, best:0, hints:true, goal:20, rec:{}, mastered:{}, sel:'l1', unlockAll:false, cur:null };
 let S;
 try { S = Object.assign(JSON.parse(JSON.stringify(DEF)), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = JSON.parse(JSON.stringify(DEF)); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
@@ -680,9 +693,12 @@ const showAlt = () => S.hints && !(q && q.noAlt && !answered);
 const qw = () => (q && q.width) || W;
 let hexIn = '';
 
-function newQ() {
-  const t = pickType(); lastType = t;
-  q = TYPES[t][1](); q.type = t; input = 0; hexIn = ''; answered = false;
+function newQ(restored) {
+  const t = restored ? restored.q.type : pickType(); lastType = t;
+  if (restored) { q = restored.q; input = restored.input || 0; hexIn = restored.hexIn || ''; }
+  else { q = TYPES[t][1](); q.type = t; input = 0; hexIn = ''; }
+  answered = false;
+  if (!blitz) { S.cur = { q, input, hexIn }; save(); }
   const li = LEVEL_OF[t];
   $('#qTag').textContent = `L${li + 1} · ${LEVELS[li].name}` + (LEVELS[li].id !== S.sel && !blitz ? ' · review' : '');
   $('#qPrompt').textContent = q.prompt;
@@ -704,7 +720,9 @@ function renderOps() {
   $('#qOps').innerHTML = q.ops.map(([l, v]) =>
     `<div class="op"><span class="lbl">${esc(l)}</span><span>${bin(v, qw())}</span>${showAlt() ? `<span class="alt">${alt(v)}</span>` : ''}</div>`).join('');
 }
+const syncCur = () => { if (S.cur && !answered && !blitz) { S.cur.input = input; S.cur.hexIn = hexIn; } };
 function renderBits(ref) {
+  syncCur();
   for (const el of $('#bitGrid').children) {
     if (!el.dataset.i) continue;
     const i = +el.dataset.i, on = (input >> i) & 1;
@@ -726,6 +744,7 @@ function buildGrid() {
   $('#bitIdx').innerHTML = idx; $('#bitGrid').innerHTML = grid;
 }
 function renderHex() {
+  syncCur();
   let h = '<span class="px">0x</span>';
   for (let i = 0; i < q.hexLen; i++) h += `<span class="slot${i === hexIn.length ? ' cur' : ''}">${hexIn[i] || '&nbsp;'}</span>`;
   $('#hexDisp').innerHTML = h;
@@ -746,6 +765,7 @@ function check(choice) {
   answered = true;
   const given = q.kind === 'hex' ? parseInt(hexIn, 16) : input;
   const ok = q.kind === 'choice' ? choice === q.answer : given === q.answer;
+  if (!blitz) S.cur = null;
   record(q.type, ok);
   if (blitz) { blitz.total++; if (ok) blitz.score++; }
   const v = $('#verdict');
@@ -790,6 +810,7 @@ function updateInfo() {
     `L${si + 1} ${recScore(si)}/10 · today ${today().a}/${S.goal}`;
 }
 
+const canResume = () => !!(S.cur && S.cur.q && TYPES[S.cur.q.type]);
 function startPlay(m) {
   mode = m; show('play');
   if (m === 'blitz') {
@@ -797,7 +818,7 @@ function startPlay(m) {
     $('#nextBtn').style.display = 'none';
     tick(); blitz.iv = setInterval(tick, 200);
   } else { blitz = null; $('#timer').textContent = ''; $('#nextBtn').style.display = ''; }
-  newQ();
+  if (m === 'practice' && canResume()) newQ(S.cur); else newQ();
 }
 function tick() {
   if (!blitz) return;
@@ -855,6 +876,9 @@ function renderHome() {
   $('#unlockBtn').textContent = S.unlockAll ? 'on' : 'off';
   $('#unlockBtn').classList.toggle('on', S.unlockAll);
   $('#goalSel').value = String(S.goal);
+  $('#goPractice').textContent = canResume() ? 'Resume' : 'Practice';
+  $('#versionLine').textContent = 'Bit Drill v' + APP_VERSION;
+  storageStatus();
 }
 function renderStats() {
   let days = '', mx = 1;
@@ -874,7 +898,7 @@ function renderStats() {
   $('#totalAns').textContent = Object.values(S.days).reduce((a, d) => a + d.a, 0);
 }
 let toastT;
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', 2600); }
+function toast(msg) { const t = $('#toast'); t.onclick = null; t.style.cursor = ''; t.textContent = msg; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', 2600); }
 
 /* ---------- events ---------- */
 $('#bitGrid').addEventListener('click', e => {
@@ -923,7 +947,64 @@ document.addEventListener('keydown', e => {
 });
 
 show('home');
-try { if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
+function storageStatus() {
+  const el = $('#storeStatus');
+  try {
+    if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { el.textContent = p ? 'kept permanently' : 'browser may clear it if space runs low'; }).catch(() => { el.textContent = 'yes'; });
+    else el.textContent = 'yes';
+  } catch (e) { el.textContent = 'yes'; }
+}
+// Ask the browser not to evict our data. Chrome grants this to installed apps without a prompt.
+let persistAsked = false;
+function askPersist() {
+  if (persistAsked) return; persistAsked = true;
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(storageStatus).catch(() => {}); } catch (e) {}
+}
+document.addEventListener('click', askPersist, { once:true });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+window.addEventListener('pagehide', save);
+
+$('#exportBtn').onclick = () => {
+  const data = JSON.stringify({ app:'bitdrill', version:APP_VERSION, exported:new Date().toISOString(), state:S }, null, 1);
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([data], { type:'application/json' }));
+    a.download = `bitdrill-backup-${dkey()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('Backup downloaded');
+  } catch (e) {
+    try { navigator.clipboard.writeText(data).then(() => toast('Backup copied to clipboard')); } catch (e2) { toast('Backup not available here'); }
+  }
+};
+$('#importBtn').onclick = () => $('#importFile').click();
+$('#importFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(txt => {
+    const d = JSON.parse(txt);
+    if (!d || d.app !== 'bitdrill' || typeof d.state !== 'object') throw new Error('not a Bit Drill backup');
+    S = Object.assign(JSON.parse(JSON.stringify(DEF)), d.state); save(); renderHome();
+    toast('Backup restored');
+  }).catch(err => toast('Restore failed: ' + err.message)).finally(() => { e.target.value = ''; });
+};
+
+// Service worker: check for a new version whenever the app comes to the foreground,
+// and tell the user when one has taken over.
+try {
+  if ('serviceWorker' in navigator) {
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) return; // first install, not an update
+      save();
+      const t = $('#toast');
+      t.textContent = 'Updated · tap to reload'; t.style.display = 'block'; t.style.cursor = 'pointer';
+      clearTimeout(toastT);
+      t.onclick = () => location.reload();
+    });
+  }
+} catch (e) {}
 
 })();
 </script>
