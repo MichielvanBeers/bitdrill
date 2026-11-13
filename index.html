@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bit Drill</title>
+<meta name="theme-color" content="#11151c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bit Drill">
+<style>
+:root{
+  --bg:#11151c;--panel:#1a2029;--panel2:#222a35;--line:#2e3846;
+  --fg:#e6e9ee;--dim:#8a95a5;--on:#f2b84b;--ok:#4cc38a;--bad:#ef6461;--acc:#6ea8fe;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{min-height:100vh;display:flex;flex-direction:column}
+main{flex:1;width:100%;max-width:520px;margin:0 auto;padding:16px 16px 88px}
+h1{font-size:26px;margin:4px 0 2px;letter-spacing:-.02em}
+h1 span{color:var(--on);font-family:var(--mono)}
+h2{font-size:17px;margin:22px 0 8px}
+h3{font-size:15px;margin:18px 0 6px;color:var(--on)}
+p{margin:6px 0}
+.sub{color:var(--dim);font-size:14px;margin:0 0 14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+.row{display:flex;gap:10px;align-items:center}
+.between{justify-content:space-between}
+.big{font-size:28px;font-weight:700;font-family:var(--mono)}
+.dim{color:var(--dim)}
+.small{font-size:13px}
+.bar{height:8px;background:var(--panel2);border-radius:8px;overflow:hidden;margin-top:8px}
+.bar>i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.btn{display:block;width:100%;padding:14px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);font-weight:600;font-size:16px}
+.btn.primary{background:var(--on);color:#1b1405;border-color:var(--on)}
+.btn.ghost{background:transparent}
+.btn:active{transform:scale(.98)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 12px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:14px;color:var(--dim)}
+.chip.on{background:#2b2414;border-color:var(--on);color:var(--on)}
+select{font:inherit;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+code,pre,.mono{font-family:var(--mono)}
+code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:.92em}
+pre{background:var(--panel2);padding:10px 12px;border-radius:10px;overflow-x:auto;font-size:13px;margin:8px 0;line-height:1.5}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;max-width:173px;padding:14px 0;background:none;color:var(--dim);font-weight:600}
+nav button.on{color:var(--on)}
+.view{display:none}.view.on{display:block}
+/* play */
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.x{background:none;font-size:22px;padding:4px 10px;color:var(--dim)}
+.tag{font-size:13px;letter-spacing:.02em;color:var(--acc)}
+.prompt{font-size:18px;font-weight:600;margin:4px 0 10px}
+.op{display:flex;align-items:baseline;gap:10px;font-family:var(--mono);font-size:20px;padding:2px 0}
+.op .lbl{width:22px;color:var(--dim)}
+.op .alt{font-size:13px;color:var(--dim)}
+.expr{font-family:var(--mono);font-size:20px;background:var(--panel2);border-radius:10px;padding:10px 12px;margin-top:10px;text-align:center;color:var(--on);word-break:break-word}
+.bits{display:grid;grid-template-columns:repeat(4,1fr) 8px repeat(4,1fr);gap:6px;margin:14px 0 6px}
+.bits .idx{text-align:center;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.bit{aspect-ratio:1/1.15;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-family:var(--mono);font-size:24px;font-weight:700;color:var(--dim)}
+.bit.on{background:var(--on);border-color:var(--on);color:#1b1405}
+.bit.bad{outline:3px solid var(--bad);outline-offset:-3px}
+.readout{font-family:var(--mono);text-align:center;color:var(--dim);font-size:14px;min-height:20px}
+.choices{display:grid;gap:8px;margin:14px 0}
+.choice{padding:14px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);font-family:var(--mono);font-size:17px;text-align:left}
+.choice.big2{text-align:center;font-size:26px;font-weight:700}
+.choice.right{border-color:var(--ok);background:#163327}
+.choice.wrong{border-color:var(--bad);background:#3a1a1a}
+.fb{display:none;margin-top:10px}
+.fb.on{display:block}
+.verdict{font-weight:700;font-size:18px}
+.verdict.ok{color:var(--ok)}.verdict.no{color:var(--bad)}
+.cmp{font-family:var(--mono);font-size:16px;margin:6px 0}
+.cmp .b{color:var(--bad);font-weight:700;text-decoration:underline}
+.trace .l{color:var(--dim)}
+.trace .a{color:var(--dim)}
+.timer{font-family:var(--mono);font-size:20px;font-weight:700}
+.toast{position:fixed;left:50%;top:16px;transform:translateX(-50%);background:var(--ok);color:#06210f;padding:10px 16px;border-radius:999px;font-weight:700;display:none;z-index:9}
+.days{display:flex;gap:4px;align-items:flex-end;height:60px;margin-top:8px}
+.days i{flex:1;background:var(--panel2);border-radius:3px;min-height:3px}
+.days i.met{background:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--dim);font-weight:500}
+td.n{text-align:right;font-family:var(--mono)}
+.hexdisp{font-family:var(--mono);font-size:38px;font-weight:700;text-align:center;margin:14px 0 10px;letter-spacing:.08em}
+.hexdisp .px{color:var(--dim)}
+.hexdisp .slot{display:inline-block;min-width:.9em;border-bottom:3px solid var(--line);margin:0 2px;color:var(--on)}
+.hexdisp .slot.cur{border-color:var(--on)}
+.keypad{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.key{padding:13px 0;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-family:var(--mono);font-size:20px;font-weight:700}
+.key:active{background:var(--on);color:#1b1405}
+.key small{display:block;font-size:10px;font-weight:400;color:var(--dim)}
+.lvl{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;margin:6px 0;border-radius:12px;background:var(--panel);border:1px solid var(--line);text-align:left}
+.lvl .num{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--panel2);font-family:var(--mono);font-weight:700;font-size:14px;flex:none}
+.lvl .nm{flex:1;font-size:15px}
+.lvl .st{font-size:12px;color:var(--dim);font-family:var(--mono)}
+.lvl.done .num{background:#163327;color:var(--ok)}
+.lvl.cur{border-color:var(--on)}
+.lvl.cur .num{background:var(--on);color:#1b1405}
+.lvl.locked{opacity:.45;cursor:default}
+.sublegend{font-family:var(--mono);font-size:12px;color:var(--dim);margin:-4px 0 8px}
+.bits .idx b{display:block;font-weight:500}
+.bits .idx span{font-size:10px;opacity:.75}
+.kbd{font-size:12px;color:var(--dim);text-align:center;margin-top:8px}
+@media (hover:none){.kbd{display:none}}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<main>
+
+<!-- HOME -->
+<section class="view on" id="v-home">
+  <h1>Bit <span>Drill</span></h1>
+  <p class="sub">Daily bitmasking practice, 8-bit.</p>
+
+  <div class="card">
+    <div class="row between">
+      <div><div class="dim small">Streak (days goal met)</div><div class="big" id="streak">0</div></div>
+      <div style="text-align:right"><div class="dim small">Today</div><div class="big" id="today">0/20</div></div>
+    </div>
+    <div class="bar"><i id="todayBar"></i></div>
+  </div>
+
+  <div class="card">
+    <div class="tag" id="lvTag"></div>
+    <div class="prompt" id="lvName" style="margin:2px 0 6px"></div>
+    <p class="small" id="lvIntro"></p>
+    <div class="row between small dim" style="margin-top:10px"><span id="lvMastery"></span><span>need 8/10</span></div>
+    <div class="bar"><i id="lvBar"></i></div>
+    <div class="grid2" style="margin-top:14px">
+      <button class="btn primary" id="goPractice">Practice</button>
+      <button class="btn" id="goBlitz">Blitz 60s</button>
+    </div>
+    <p class="dim small" id="bestLine" style="text-align:right;margin-bottom:0"></p>
+  </div>
+
+  <h2>Levels</h2>
+  <div id="levelList"></div>
+  <p class="dim small">Practice mixes in ~25% review from earlier levels. Weak question types come up more often.</p>
+
+  <h2>Settings</h2>
+  <div class="card">
+    <div class="row between"><span>Show hex/decimal and place values</span><button class="chip" id="hintsBtn">on</button></div>
+    <div class="row between" style="margin-top:10px"><span>Unlock all levels</span><button class="chip" id="unlockBtn">off</button></div>
+    <div class="row between" style="margin-top:10px"><span>Daily goal</span>
+      <select id="goalSel"><option>10</option><option>20</option><option>30</option><option>50</option></select></div>
+  </div>
+</section>
+
+<!-- PLAY -->
+<section class="view" id="v-play">
+  <div class="top">
+    <button class="x" id="quit" aria-label="Back">←</button>
+    <span class="dim small" id="playInfo"></span>
+    <span class="timer" id="timer"></span>
+  </div>
+  <div class="card">
+    <div class="tag" id="qTag"></div>
+    <div class="prompt" id="qPrompt"></div>
+    <div class="sublegend" id="qSub"></div>
+    <div id="qOps"></div>
+    <div class="expr" id="qExpr"></div>
+  </div>
+
+  <div id="bitArea">
+    <div class="bits" id="bitIdx"></div>
+    <div class="bits" id="bitGrid" style="margin-top:0"></div>
+    <div class="readout" id="readout"></div>
+    <div class="grid2" style="margin-top:12px">
+      <button class="btn ghost" id="clearBtn">Clear</button>
+      <button class="btn primary" id="checkBtn">Check</button>
+    </div>
+    <div class="kbd">Keys 0–7 toggle bits · Backspace clears · Enter checks</div>
+  </div>
+  <div class="choices" id="choiceArea"></div>
+  <div id="hexArea">
+    <div class="hexdisp" id="hexDisp"></div>
+    <div class="keypad" id="keypad"></div>
+    <div class="grid2" style="margin-top:10px">
+      <button class="btn ghost" id="hexDel">⌫</button>
+      <button class="btn primary" id="hexCheck">Check</button>
+    </div>
+    <div class="kbd">Type 0–9 / A–F · Backspace deletes · Enter checks</div>
+  </div>
+
+  <div class="card fb" id="fb">
+    <div class="verdict" id="verdict"></div>
+    <div id="cmp"></div>
+    <pre class="trace" id="trace"></pre>
+    <p id="note"></p>
+    <button class="btn primary" id="nextBtn" style="margin-top:10px">Next</button>
+  </div>
+</section>
+
+<!-- LEARN -->
+<section class="view" id="v-learn">
+  <h1>Cheat sheet</h1>
+  <p class="sub">Bit <code>n</code> counts from the right, starting at 0. <code>1 &lt;&lt; n</code> is a number with only bit <code>n</code> set.</p>
+
+  <h3>Reading binary</h3>
+<pre>bit:    7   6   5   4   3   2   1   0
+value: 128  64  32  16   8   4   2   1
+
+1010 0110 = 128 + 32 + 4 + 2 = 166</pre>
+
+  <h3>Hex: one digit is exactly 4 bits</h3>
+<pre>0 0000   4 0100   8 1000   C 1100
+1 0001   5 0101   9 1001   D 1101
+2 0010   6 0110   A 1010   E 1110
+3 0011   7 0111   B 1011   F 1111</pre>
+  <p>Anchors: <code>1 2 4 8</code> are single bits, <code>F</code> is all four, <code>0</code> is none, <code>A</code> (1010) and <code>5</code> (0101) alternate. Every other digit is a sum: <code>B</code> = 8+2+1, <code>6</code> = 4+2.</p>
+  <p>Never convert a whole hex number. Read each digit on its own: <code>0xA6</code> = <code>1010</code> <code>0110</code>.</p>
+
+  <h3>Thinking in hex</h3>
+<pre>0x0B | 0x03   →  0|0 = 0,  B|3 = 1011|0011 = 1011 = B  →  0x0B
+0x3A + 0x15   →  A+5 = 15 = F, no carry;  3+1 = 4     →  0x4F
+0x2C + 0x15   →  C+5 = 17 = 16+1 → 1, carry;  2+1+1 = 4 →  0x41</pre>
+  <p>&amp; | ^ work per digit, the nibbles never affect each other. Addition carries at 16 from the low digit into the high one.</p>
+<pre>0x0F  low nibble       0xF0  high nibble
+0xFF  full byte        0x80  top bit of a byte
+0x01  bottom bit       0x55 / 0xAA  alternating</pre>
+
+  <h3>Decimal in code</h3>
+  <p>Decimal digits don't line up with bits. Know these on sight: powers of two (1, 2, 4 … 128, one bit) and one less than a power of two (15, 31, 63, 127, 255, all lower bits). For anything else, split into powers of two:</p>
+<pre>flags &amp; 72   →  72 = 64 + 8  →  bits 6 and 3  →  0100 1000 = 0x48</pre>
+
+  <h3>The four operators</h3>
+<pre>  1100      1100      1100     ~ 1100
+& 1010    | 1010    ^ 1010
+= 1000    = 1110    = 0110     = 0011</pre>
+  <p><b>AND</b> keeps bits (masking in). <b>OR</b> turns bits on. <b>XOR</b> flips bits / finds differences. <b>NOT</b> inverts all.</p>
+
+  <h3>Single bit</h3>
+<pre>x |  (1 &lt;&lt; n)      set bit n
+x &amp; ~(1 &lt;&lt; n)      clear bit n
+x ^  (1 &lt;&lt; n)      toggle bit n
+(x &gt;&gt; n) &amp; 1       read bit n (0 or 1)
+(x &amp; (1 &lt;&lt; n)) != 0   is bit n set?</pre>
+
+  <h3>Shifts</h3>
+  <p><code>x &lt;&lt; k</code> multiplies by 2<sup>k</sup> (bits falling off the top are lost). <code>x &gt;&gt; k</code> divides by 2<sup>k</sup>, rounding down (for unsigned values).</p>
+
+  <h3>Masks and fields</h3>
+<pre>((1 &lt;&lt; w) - 1)            w ones at the bottom
+((1 &lt;&lt; w) - 1) &lt;&lt; lo      w ones starting at bit lo
+(x &gt;&gt; lo) &amp; mask           read field
+(x &amp; ~(mask &lt;&lt; lo)) | (v &lt;&lt; lo)   write field</pre>
+  <p>Field <code>[hi:lo]</code> has width <code>w = hi − lo + 1</code>. Writing a field is read-modify-write: clear first, then OR the new value in. This is how hardware registers get updated.</p>
+
+  <h3>Flags</h3>
+<pre>READ = 1 &lt;&lt; 0, WRITE = 1 &lt;&lt; 1, EXEC = 1 &lt;&lt; 2
+p = READ | WRITE            combine
+p &amp; WRITE                   has WRITE? (non-zero)
+(p &amp; m) == m                has ALL of m
+(p &amp; m) != 0                has ANY of m
+p &amp; ~m                      remove m
+p ^ m                       toggle m</pre>
+
+  <h3>Classic tricks</h3>
+<pre>x &amp; (x - 1)     clear lowest set bit
+x &amp; -x          isolate lowest set bit
+(x &amp; (x-1))==0  power of two (x &gt; 0)
+x &amp; 1           odd?
+x ^ y ^ y == x  XOR undoes itself</pre>
+  <p><code>-x</code> in two's complement is <code>~x + 1</code>.</p>
+
+  <h3>Real-world gotchas</h3>
+  <p><b>Precedence:</b> in C, C++, Java and JS, <code>x &amp; m == m</code> parses as <code>x &amp; (m == m)</code>. Always parenthesise: <code>(x &amp; m) == m</code>.</p>
+  <p><b>Width:</b> <code>~</code> works on the whole int (32/64 bits), so <code>~0x0F</code> is not <code>0xF0</code> unless you mask with <code>&amp; 0xFF</code>. In JS, bitwise ops are 32-bit signed; use <code>&gt;&gt;&gt; 0</code> to get unsigned.</p>
+  <p><b>Signed right shift</b> copies the sign bit (arithmetic shift). Use unsigned types for masks.</p>
+  <p><b>Shifting by ≥ the type width</b> is undefined behaviour in C/C++.</p>
+</section>
+
+<!-- STATS -->
+<section class="view" id="v-stats">
+  <h1>Stats</h1>
+  <div class="card">
+    <div class="dim small">Last 14 days (green = goal met)</div>
+    <div class="days" id="days"></div>
+  </div>
+  <div class="card">
+    <table id="statTable"></table>
+  </div>
+  <div class="card"><div class="row between"><span>Best blitz</span><span class="mono" id="bestBlitz">0</span></div>
+  <div class="row between" style="margin-top:6px"><span>Total answered</span><span class="mono" id="totalAns">0</span></div></div>
+  <button class="btn ghost" id="resetBtn" style="margin-top:16px;color:var(--bad)">Reset all progress</button>
+</section>
+
+</main>
+<nav>
+  <button data-v="home" class="on">Play</button>
+  <button data-v="learn">Learn</button>
+  <button data-v="stats">Stats</button>
+</nav>
+
+<script>
+(() => {
+'use strict';
+const W = 8, M = 0xFF;
+const $ = s => document.querySelector(s);
+const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const bin = (v, w = W) => w === W ? (v & M).toString(2).padStart(W,'0').replace(/^(.{4})/, '$1 ') : (v & ((1 << w) - 1)).toString(2).padStart(w,'0');
+const H1 = v => v.toString(16).toUpperCase();
+const hexStr = (v, len) => '0x' + H1(v).padStart(len, '0');
+const b4 = v => (v & 15).toString(2).padStart(4,'0');
+const hx = v => '0x' + (v & M).toString(16).toUpperCase().padStart(2,'0');
+const alt = v => `${hx(v)} · ${v & M}`;
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = r(0, i); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const trailingX = () => (r(1, 31) << r(0, 3)) & M;
+const powers = n => { const p = []; for (let i = W - 1; i >= 0; i--) if (n & (1 << i)) p.push(1 << i); return p; };
+
+/* ---------- storage (best effort) ---------- */
+const KEY = 'bitdrill.v1';
+const DEF = { days:{}, types:{}, best:0, hints:true, goal:20, rec:{}, mastered:{}, sel:'l1', unlockAll:false };
+let S;
+try { S = Object.assign(JSON.parse(JSON.stringify(DEF)), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = JSON.parse(JSON.stringify(DEF)); }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const dkey = (d = new Date()) => { const z = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`; };
+const dayBack = n => { const d = new Date(); d.setDate(d.getDate() - n); return dkey(d); };
+const today = () => S.days[dkey()] || { a:0, c:0 };
+function streak() {
+  let s = 0, i = (today().a >= S.goal) ? 0 : 1;
+  while (true) { const d = S.days[dayBack(i)]; if (d && d.a >= S.goal) { s++; i++; } else break; }
+  return s;
+}
+
+/* ---------- question builders ---------- */
+const B = (prompt, ops, expr, answer, trace, note, extra) => Object.assign({ kind:'bits', prompt, ops, expr, answer: answer & M, trace, note }, extra);
+const C = (prompt, ops, expr, choices, answer, trace, note, extra) => Object.assign({ kind:'choice', prompt, ops, expr, choices, answer, trace, note }, extra);
+const X = (prompt, ops, expr, answer, hexLen, trace, note, extra) => Object.assign({ kind:'hex', prompt, ops, expr, answer, hexLen, trace, note }, extra);
+const nibNote = n => n === 0 ? '0 = 0000, no bits set.' : n === 15 ? 'F = 1111: all four bits (8 + 4 + 2 + 1).'
+  : `${H1(n)} = ${n} = ${powers(n).join(' + ')} → ${b4(n)}.` + (n === 10 || n === 5 ? ' A and 5 are the two alternating patterns.' : powers(n).length === 1 ? ' 1, 2, 4, 8 are the single-bit anchors.' : '');
+const maskish = () => {
+  switch (r(0, 2)) {
+    case 0: return (1 << r(2, 8)) - 1;
+    case 1: { const i = r(3, 7); let j = r(0, 6); while (j === i) j = r(0, 6); return (1 << i) | (1 << j); }
+    default: { const s = shuffle([0,1,2,3,4,5,6,7]).slice(0, 3); return s.reduce((a, k) => a | (1 << k), 0); }
+  }
+};
+const bitList = n => { const l = []; for (let i = W - 1; i >= 0; i--) if (n & (1 << i)) l.push(i); return l; };
+const listStr = l => l.length === 1 ? `bit ${l[0]}` : l.length <= 3 ? `bits ${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}` : `bits ${l[0]}..${l[l.length - 1]}`;
+const sumNote = n => n ? `${n} = ${powers(n).join(' + ')}. Set the bit for each power of two.` : '0 has no bits set.';
+const FLAGS = ['READ','WRITE','EXEC','ADMIN'];
+const FLAG_LEGEND = 'READ=1<<0  WRITE=1<<1  EXEC=1<<2  ADMIN=1<<3';
+
+const G = {
+  make(min, max) { const n = r(min, max);
+    return B(`Write ${n} in binary`, [], String(n), n, null, sumNote(n), { noAlt:true }); },
+  read(min, max) { const n = r(min, max), bitsN = max > 15 ? 8 : 4, set = new Set([n]);
+    while (set.size < 4) set.add(n ^ (1 << r(0, bitsN - 1)));
+    const choices = shuffle([...set].map(String));
+    return C('What is x in decimal?', [['x', n]], '', choices, choices.indexOf(String(n)), null, sumNote(n), { noAlt:true, bigChoices:true }); },
+  hex() { const n = r(0, M), h = hx(n);
+    return B(`Write ${h} in binary`, [], h, n, null,
+      `Each hex digit is one nibble (4 bits): ${h[2]} = ${(n >> 4).toString(2).padStart(4,'0')}, ${h[3]} = ${(n & 15).toString(2).padStart(4,'0')}.`, { noAlt:true }); },
+  nib2bin() { const n = r(0, 15);
+    return B(`Write 0x${H1(n)} in binary`, [], '0x' + H1(n), n, null, nibNote(n), { noAlt:true, width:4 }); },
+  bin2nib() { const n = r(0, 15);
+    return X('Which hex digit is x?', [['x', n]], '', n, 1, null, nibNote(n), { noAlt:true, width:4 }); },
+  nibsum() { const n = [3,5,6,7,9,10,11,12,13,14][r(0, 9)], s = powers(n).join(' + ');
+    return X(`Which hex digit is ${s}?`, [], s, n, 1, null, nibNote(n)); },
+  bin2hex() { const n = r(0, M);
+    return X('Write x in hex', [['x', n]], '', n, 2, [['high', `${b4(n >> 4)} = ${H1(n >> 4)}`, true], ['low', `${b4(n)} = ${H1(n & 15)}`, true], ['=', hx(n), true]],
+      'Read each nibble on its own and write one hex digit per nibble. Never convert the whole byte at once.', { noAlt:true }); },
+  hexop() { const a = r(0, M), b = r(0, M), op = ['&','|','^'][r(0, 2)];
+    const f = { '&': (p, q) => p & q, '|': (p, q) => p | q, '^': (p, q) => p ^ q }[op], ans = f(a, b);
+    const line = (p, q) => `${H1(p)} ${op} ${H1(q)} = ${H1(f(p, q))}  ${b4(p)}${op}${b4(q)}=${b4(f(p, q))}`;
+    return X('Compute in hex, digit by digit', [], `${hx(a)} ${op} ${hx(b)}`, ans, 2,
+      [['high', line(a >> 4, b >> 4), true], ['low', line(a & 15, b & 15), true], ['=', hx(ans), true]],
+      'Bitwise operators work on each hex digit separately: the two nibbles never affect each other. Expand only the digit you are working on.'); },
+  hexadd() { const a = r(0x10, 0xE0), b = r(1, Math.min(0xEF, M - a)), s = a + b, lo = (a & 15) + (b & 15), carry = lo > 15 ? 1 : 0, hi = (a >> 4) + (b >> 4) + carry;
+    return X('Add in hex', [], `${hx(a)} + ${hx(b)}`, s, 2,
+      [['low', `${H1(a & 15)} + ${H1(b & 15)} = ${lo}` + (carry ? ` = 16 + ${lo - 16} → write ${H1(lo - 16)}, carry 1` : ` → ${H1(lo)}`), true],
+       ['high', `${H1(a >> 4)} + ${H1(b >> 4)}${carry ? ' + 1' : ''} = ${hi} → ${H1(hi)}`, true], ['=', `${hx(s)}   (${a} + ${b} = ${s})`, true]],
+      'Add digit by digit like in decimal, but carry at 16 instead of 10. Unlike & | ^, addition does spill from the low nibble into the high one.'); },
+  dec2hex() { const n = maskish(), l = bitList(n);
+    return X(`flags & ${n}: write ${n} in hex`, [], String(n), n, 2,
+      [['split', `${n} = ${powers(n).join(' + ')}`, true], ['bits', listStr(l), true], ['binary', bin(n), true], ['hex', hx(n), true]],
+      'Decimal digits don\'t line up with bits. Split into powers of two, place the bits, then read each nibble as a hex digit.'); },
+  decbits() { const n = maskish(), l = bitList(n);
+    return B(`flags & ${n}: which bits are tested?`, [], String(n), n,
+      [['split', `${n} = ${powers(n).join(' + ')}`, true], ['=', bin(n), true]],
+      `${n} = ${listStr(l)}.` + (((n + 1) & n) === 0 ? ` ${n} is one less than ${n + 1}, a power of two, so every bit below is set.` : ''), { noAlt:true }); },
+  pattern(tag) {
+    let e;
+    if (tag === 'hex') {
+      const bank = [
+        ['x & 0x0F keeps…', 'the low nibble (bits 3..0)', ['the high nibble (bits 7..4)', 'only bit 0', 'everything except bits 3..0'], '0x0F = 0000 1111.'],
+        ['x & 0xF0 keeps…', 'the high nibble (bits 7..4)', ['the low nibble (bits 3..0)', 'only bit 7', 'everything except bits 7..4'], '0xF0 = 1111 0000.'],
+        ['In a byte, 0x80 is…', 'only the top bit (bit 7)', ['all 8 bits', 'bit 8', 'the high nibble'], '8 = 1000 in the high nibble: 1000 0000.'],
+        ['0xFF is…', 'all 8 bits set (255)', ['only bit 7 set', 'the low nibble', '256'], 'F = 1111 twice.'],
+        ['0x01 is…', 'only the bottom bit (bit 0)', ['only bit 1', 'the low nibble', 'bits 7..0'], '0000 0001.'],
+        ['Alternating bits with bit 0 set', '0x55', ['0xAA', '0x5A', '0x0F'], '5 = 0101, so 0x55 = 0101 0101. 0xAA is its inverse.'],
+        ['Alternating bits with bit 7 set', '0xAA', ['0x55', '0xA5', '0xF0'], 'A = 1010, so 0xAA = 1010 1010.'],
+        ['Which hex digit has all four bits set?', 'F', ['8', 'E', 'A'], 'F = 1111. E = 1110 is missing bit 0.'],
+        ['Mask that keeps bits 7..4 and clears 3..0', '0xF0', ['0x0F', '0x80', '0xFF'], 'High nibble all ones (F), low nibble all zeros (0).'],
+        ['Mask for bit 3 only', '0x08', ['0x03', '0x80', '0x10'], '1 << 3 = 8 = 0000 1000. 0x03 is bits 1 and 0.'],
+        ['Mask for bit 4 only', '0x10', ['0x04', '0x40', '0x08'], 'Bit 4 is the lowest bit of the high nibble: 0001 0000.'],
+      ];
+      e = bank[r(0, bank.length - 1)];
+    } else {
+      const k = r(3, 7), p = 1 << k;
+      switch (r(0, 2)) {
+        case 0: e = ['Which decimal has exactly one bit set?', String(p), [String(p + 2), String(p - 2), String(p + p / 2)], `${p} = 2^${k} = 1 << ${k}. Powers of two are worth knowing on sight.`]; break;
+        case 1: e = [`Which decimal has bits ${k - 1}..0 all set?`, String(p - 1), [String(p), String(p - 2), String(p + 1)], `${p - 1} = ${p} − 1. One less than a power of two sets every bit below it.`]; break;
+        default: e = [`What is ${p - 1} in hex?`, hx(p - 1), [hx(p), hx(p - 2), hx(p + 1)], `${p - 1} = bits ${k - 1}..0 = ${bin(p - 1)} = ${hx(p - 1)}.`];
+      }
+    }
+    const [task, right, wrongs, note] = e, choices = shuffle([right, ...wrongs]);
+    return C(task, [], '', choices, choices.indexOf(right), null, note);
+  },
+  and(max = M) { const a = r(0,max), b = r(0,max);
+    return B('Compute a & b',[['a',a],['b',b]],'a & b',a & b,[['a',a],['& b',b],['=',a & b]],
+      'AND gives 1 only where both bits are 1. Use it to keep selected bits and zero the rest.'); },
+  or(max = M) { const a = r(0,max), b = r(0,max);
+    return B('Compute a | b',[['a',a],['b',b]],'a | b',a | b,[['a',a],['| b',b],['=',a | b]],
+      'OR gives 1 where either bit is 1. Use it to switch bits on.'); },
+  xor() { const a = r(0,M), b = r(0,M);
+    return B('Compute a ^ b',[['a',a],['b',b]],'a ^ b',a ^ b,[['a',a],['^ b',b],['=',a ^ b]],
+      'XOR gives 1 where the bits differ. Use it to flip bits. x ^ x = 0, and applying the same XOR twice undoes it.'); },
+  not() { const x = r(0,M);
+    return B('Invert x (8-bit)',[['x',x]],'~x & 0xFF',~x,[['x',x],['~x',~x & M]],
+      'NOT flips every bit. Real languages apply ~ to the full int width, which is why you mask with & 0xFF to stay in 8 bits.'); },
+  shl() { const x = r(1,M), k = r(1,4), a = (x << k) & M, lost = x >> (W - k);
+    return B(`Shift x left by ${k}`,[['x',x]],`(x << ${k}) & 0xFF`,a,[['x',x],[`<< ${k}`,a]],
+      `Every bit moves ${k} place${k>1?'s':''} left and zeros fill in on the right. Without overflow this is x × ${1<<k}.` +
+      (lost ? ` Here 1-bits fell off the top, so the result is (${x} × ${1<<k}) mod 256 = ${a}.` : ` ${x} × ${1<<k} = ${a}.`)); },
+  shr() { const x = r(1,M), k = r(1,4), a = x >> k;
+    return B(`Shift x right by ${k}`,[['x',x]],`x >> ${k}`,a,[['x',x],[`>> ${k}`,a]],
+      `Every bit moves ${k} place${k>1?'s':''} right and the low bits fall off. For unsigned values this is floor(x / ${1<<k}): ${x} / ${1<<k} → ${a}.`); },
+  set() { const x = r(0,M), n = r(0,7), m = 1 << n, a = x | m;
+    return B(`Set bit ${n} of x`,[['x',x]],`x | (1 << ${n})`,a,[['x',x],[`| 1<<${n}`,m],['=',a]],
+      `1 << ${n} is a mask with only bit ${n} on. OR forces that bit to 1 and leaves the others alone.` + ((x & m) ? ` Bit ${n} was already 1, so x is unchanged.` : '')); },
+  clear() { const x = r(0,M), n = r(0,7), m = 1 << n, a = x & ~m;
+    return B(`Clear bit ${n} of x`,[['x',x]],`x & ~(1 << ${n})`,a,[['x',x],[`& ~(1<<${n})`,~m & M],['=',a & M]],
+      `~(1 << ${n}) is all ones except bit ${n}. AND with it forces bit ${n} to 0 and keeps the rest.` + ((x & m) ? '' : ` Bit ${n} was already 0, so x is unchanged.`)); },
+  toggle() { const x = r(0,M), n = r(0,7), m = 1 << n, a = x ^ m;
+    return B(`Toggle bit ${n} of x`,[['x',x]],`x ^ (1 << ${n})`,a,[['x',x],[`^ 1<<${n}`,m],['=',a]],
+      `XOR with 1 flips a bit, XOR with 0 keeps it. Bit ${n} went from ${(x>>n)&1} to ${(a>>n)&1}.`); },
+  test() { const x = r(0,M), n = r(0,7), bit = (x >> n) & 1;
+    return C(`Read bit ${n} of x`,[['x',x]],`(x >> ${n}) & 1`,['0','1'],bit,[['x',x],[`>> ${n}`,x >> n],['& 1',bit,true]],
+      `Shift bit ${n} down to position 0, then & 1 discards everything above it. Equivalent check: (x & (1 << ${n})) != 0.`, { bigChoices:true }); },
+  mask() { const lo = r(0,6), w = r(2, Math.min(5, W - lo)), hi = lo + w - 1, a = ((1 << w) - 1) << lo;
+    return B(`Build a mask with bits ${hi}..${lo} set`,[],`((1 << ${w}) - 1) << ${lo}`,a,
+      [[`1 << ${w}`,1 << w],['- 1',(1 << w) - 1],[`<< ${lo}`,a]],
+      `Width = hi − lo + 1 = ${w}. (1 << ${w}) − 1 gives ${w} ones at the bottom, then << ${lo} slides them into place.`); },
+  extract() { const x = r(0,M), lo = r(0,5), w = r(2, Math.min(4, W - lo)), hi = lo + w - 1, m = (1 << w) - 1, a = (x >> lo) & m;
+    return B(`Extract field [${hi}:${lo}] of x`,[['x',x],['m',m]],`(x >> ${lo}) & m`,a,
+      [['x',x],[`>> ${lo}`,x >> lo],['& m',a]],
+      `Shift the field down to bit 0, then AND with ${w} ones to drop what was above it. The field's value is ${a}.`); },
+  insert() { const x = r(0,M), lo = r(0,5), w = r(2, Math.min(4, W - lo)), hi = lo + w - 1, m = ((1 << w) - 1) << lo, v = r(0,(1 << w) - 1), a = (x & ~m) | (v << lo);
+    return B(`Write v into field [${hi}:${lo}] of x`,[['x',x],['m',m],['v',v]],`(x & ~m) | (v << ${lo})`,a,
+      [['x',x],['& ~m',x & ~m & M],[`v << ${lo}`,v << lo],['|',a & M]],
+      'Read-modify-write: clear the field with & ~m, then OR in the new value shifted into position. Bits outside the field stay untouched.'); },
+  flags() {
+    const p = r(0,15), f = r(0,3), F = FLAGS[f], fm = 1 << f;
+    const [i, j] = shuffle([0,1,2,3]).slice(0,2), A = FLAGS[i], Bn = FLAGS[j], m = (1 << i) | (1 << j);
+    const ex = { sub: FLAG_LEGEND };
+    switch (r(0,5)) {
+      case 0: return B(`Grant ${F}`,[['p',p]],`p | ${F}`,p | fm,[['p',p],[`| ${F}`,fm],['=',p | fm]],
+        'OR adds a flag. If it was already there, nothing changes.', ex);
+      case 1: return B(`Revoke ${F}`,[['p',p]],`p & ~${F}`,p & ~fm,[['p',p],[`& ~${F}`,~fm & M],['=',p & ~fm & M]],
+        'AND with the inverted flag removes it and keeps every other flag. p ^ FLAG would wrongly ADD it if it was missing.', ex);
+      case 2: return B(`Toggle ${F}`,[['p',p]],`p ^ ${F}`,p ^ fm,[['p',p],[`^ ${F}`,fm],['=',p ^ fm]],
+        'XOR flips the flag: on becomes off, off becomes on.', ex);
+      case 3: return B(`Combine ${A} and ${Bn}`,[],`${A} | ${Bn}`,m,[[A,1 << i],[`| ${Bn}`,1 << j],['=',m]],
+        'Each flag is one bit, so OR-ing flags builds a set.', ex);
+      case 4: { const all = (p & m) === m;
+        return C(`Does p have BOTH ${A} and ${Bn}?`,[['p',p]],`(p & (${A} | ${Bn})) == (${A} | ${Bn})`,['Yes','No'],all ? 0 : 1,
+          [['p',p],['& mask',p & m],['mask',m]], 'Mask, then compare with the mask itself: equal only if every flag in it is present.', Object.assign({ bigChoices:true }, ex)); }
+      default: { const any = (p & m) !== 0;
+        return C(`Does p have ${A} or ${Bn} (either)?`,[['p',p]],`(p & (${A} | ${Bn})) != 0`,['Yes','No'],any ? 0 : 1,
+          [['p',p],['& mask',p & m]], 'Mask, then check for non-zero: true if at least one flag is present.', Object.assign({ bigChoices:true }, ex)); }
+    }
+  },
+  clrlow() { const x = trailingX(), a = x & (x - 1);
+    return B('Clear the lowest set bit',[['x',x]],'x & (x - 1)',a,[['x',x],['x - 1',x - 1],['&',a]],
+      'x − 1 turns the lowest 1 into 0 and every 0 below it into 1. AND with x removes exactly that lowest 1. Repeating until x is 0 counts the set bits (Kernighan).'); },
+  lowbit() { const x = trailingX(), neg = (-x) & M, a = x & neg;
+    return B('Isolate the lowest set bit',[['x',x]],'x & -x',a,[['x',x],['-x=~x+1',neg],['&',a]],
+      'In two\'s complement −x = ~x + 1: every bit above the lowest 1 is inverted, the lowest 1 and the zeros below it stay. AND leaves only the lowest 1.'); },
+  combo() {
+    const x = r(0,M);
+    switch (r(0,5)) {
+      case 0: { const k = r(1,7), a = ((x << k) | (x >> (W - k))) & M;
+        return B(`Rotate x left by ${k}`,[['x',x]],`((x << ${k}) | (x >> ${W - k})) & 0xFF`,a,
+          [['x',x],[`x << ${k}`,(x << k) & M],[`x >> ${W - k}`,x >> (W - k)],['|',a]],
+          'Bits that fall off the top re-enter at the bottom: one shift left, one shift right by (8 − k), OR them together.'); }
+      case 1: { const a = x ^ (x >> 1);
+        return B('Convert x to Gray code',[['x',x]],'x ^ (x >> 1)',a,[['x',x],['x >> 1',x >> 1],['^',a]],
+          'Each output bit is 1 where x has neighbouring bits that differ. Consecutive Gray codes differ in exactly one bit, which is why encoders use them.'); }
+      case 2: { const lo = r(1,4), w = r(2, Math.min(4, W - lo)), m = ((1 << w) - 1) << lo, a = (x & m) >> lo;
+        return B('Mask, then shift',[['x',x]],`(x & ${hx(m)}) >> ${lo}`,a,[['x',x],[`& ${hx(m)}`,x & m],[`>> ${lo}`,a]],
+          `Same result as (x >> ${lo}) & ${hx((1 << w) - 1)}: mask in place then shift, or shift first and mask with the smaller mask.`); }
+      case 3: { const b = r(0,M), a = ~(x & b) & M;
+        return B('Compute NAND of a and b',[['a',x],['b',b]],'~(a & b) & 0xFF',a,[['a',x],['& b',x & b],['~',a]],
+          'Do the AND first, then invert. NAND is 0 only where both bits are 1.'); }
+      case 4: { const s = r(1,M), c = r(1,M), a = (x | s) & ~c & M;
+        return B('Set bits s, then clear bits c',[['x',x],['s',s],['c',c]],'(x | s) & ~c',a,[['x',x],['| s',x | s],['& ~c',a]],
+          'Order matters: a bit that is in both s and c ends up cleared, because the AND runs last.'); }
+      default: { const a = ((x << 4) | (x >> 4)) & M;
+        return B('Swap the nibbles of x',[['x',x]],'((x << 4) | (x >> 4)) & 0xFF',a,[['x',x],['x << 4',(x << 4) & M],['x >> 4',x >> 4],['|',a]],
+          'In 8 bits, rotating by 4 swaps the high and low nibble.'); }
+    }
+  },
+  idiom(tag) {
+    const n = r(0,7), b = `(1 << ${n})`;
+    const bank = [
+      ['basic', `Set bit ${n} of x`, `x | ${b}`, [`x & ${b}`, `x ^ ${b}`, `x | ${n}`], 'OR with a one-bit mask forces that bit on. XOR would flip it, clearing it if it was already set.'],
+      ['basic', `Clear bit ${n} of x`, `x & ~${b}`, [`x & ${b}`, `x | ~${b}`, `x ^ ${b}`], 'AND with the inverted mask (all ones except bit n). XOR only clears the bit if it was set.'],
+      ['basic', `Toggle bit ${n} of x`, `x ^ ${b}`, [`x | ${b}`, `x & ~${b}`, `~x & ${b}`], 'XOR with 1 flips, XOR with 0 keeps.'],
+      ['basic', `Get bit ${n} of x as 0 or 1`, `(x >> ${n}) & 1`, [`x & ${b}`, `(x << ${n}) & 1`, `x >> ${n}`], `x & (1 << ${n}) is non-zero when set, but its value is ${1<<n}, not 1. Shift down first, then mask with 1.`],
+      ['basic', 'Is x odd?', '(x & 1) == 1', ['(x & 2) == 0', '(x >> 1) == 1', '(x | 1) == 1'], 'Bit 0 is the 1s place; it is 1 exactly when x is odd.'],
+      ['basic', 'Multiply x by 8', 'x << 3', ['x << 8', 'x >> 3', 'x ^ 8'], '8 = 2³, so shift left by 3.'],
+      ['basic', 'Low nibble of x (bits 3..0)', 'x & 0x0F', ['x >> 4', 'x & 0xF0', 'x | 0x0F'], '0x0F = 0000 1111.'],
+      ['basic', 'High nibble of x as 0–15', '(x >> 4) & 0x0F', ['x & 0xF0', 'x << 4', 'x >> 0x0F'], 'x & 0xF0 keeps the bits in place, so the value is 16× too big. Shift them down.'],
+      ['flags', 'Are ALL flags in m set in x?', '(x & m) == m', ['(x & m) != 0', '(x | m) == m', '(x ^ m) == 0'], '!= 0 means at least one is set. (x ^ m) == 0 means x equals m exactly, which fails when x has extra flags.'],
+      ['flags', 'Is ANY flag in m set in x?', '(x & m) != 0', ['(x & m) == m', '(x | m) != 0', '(x ^ m) != 0'], '(x & m) == m demands all of them. (x | m) != 0 is true whenever m is non-zero.'],
+      ['flags', 'Remove all flags in m from x', 'x & ~m', ['x ^ m', 'x & m', 'x | ~m'], 'XOR also ADDS any flag of m that x did not have. x & m keeps only those flags.'],
+      ['flags', 'Add all flags in m to x', 'x | m', ['x ^ m', 'x & m', 'x + m'], 'x + m carries into other bits if a flag is already set. XOR removes flags that were already set.'],
+      ['flags', 'Set bits 3..0 of x to 0101, keep the rest', '(x & ~0x0F) | 0x05', ['x | 0x05', '(x & 0x0F) | 0x05', 'x ^ 0x05'], 'Clear the field first, then OR in the value. x | 0x05 leaves any 1s that were already in bits 3 and 1.'],
+      ['flags', 'Which line has a precedence bug (C/JS)?', 'x & m == m', ['(x & m) == m', 'x | (1 << n)', '(x >> n) & 1'], '== binds tighter than &, so x & m == m means x & (m == m), i.e. x & 1.'],
+      ['tricks', 'Is x a power of two? (x > 0)', '(x & (x - 1)) == 0', ['(x & -x) == 0', '(x | (x - 1)) == 0', '(x ^ 1) == 0'], 'A power of two has exactly one 1-bit. x − 1 clears it and sets the bits below, so AND gives 0.'],
+      ['tricks', 'Isolate the lowest set bit', 'x & -x', ['x & (x - 1)', 'x | -x', 'x ^ (x - 1)'], 'x & (x − 1) clears that bit instead. x ^ (x − 1) gives the bit plus all ones below it.'],
+      ['tricks', 'Clear the lowest set bit', 'x & (x - 1)', ['x & -x', 'x - 1', 'x ^ -x'], 'x − 1 flips the lowest 1 and the zeros below it; AND with x drops all of those.'],
+      ['tricks', 'Swap a and b using XOR (step 2 of 3, after a ^= b)', 'b ^= a', ['a ^= b', 'b &= a', 'b |= a'], 'a ^= b; b ^= a; a ^= b. After step 1, a holds a^b; b ^ (a^b) = a.'],
+      ['tricks', 'Turn on all bits below the lowest set bit', 'x | (x - 1)', ['x & (x - 1)', 'x ^ (x - 1)', 'x | -x'], 'x − 1 sets every bit below the lowest 1; OR keeps the original bits too.'],
+      ['tricks', 'Are a and b equal? (no ==)', '(a ^ b) == 0', ['(a & b) == 0', '(a | b) == 0', '(a & ~b) == 0'], 'XOR is 0 exactly where bits match, so all-zero means every bit matches. a & ~b == 0 only checks that a is a subset of b.'],
+    ];
+    const pool = tag ? bank.filter(e => e[0] === tag) : bank;
+    const [, task, right, wrongs, note] = pool[r(0, pool.length - 1)];
+    const choices = shuffle([right, ...wrongs]);
+    return C(task, [], '', choices, choices.indexOf(right), null, note);
+  },
+};
+
+/* ---------- levels ---------- */
+const TYPES = {
+  make4:  ['Write 0–15',      () => G.make(0, 15)],
+  read4:  ['Read 4-bit',      () => G.read(1, 15)],
+  nib2bin:['Hex digit → bits', () => G.nib2bin()],
+  bin2nib:['Bits → hex digit', () => G.bin2nib()],
+  nibsum: ['Sum → hex digit', () => G.nibsum()],
+  bin2hex:['Byte → hex',      () => G.bin2hex()],
+  hexop:  ['Bitwise in hex',  () => G.hexop()],
+  hexadd: ['Hex addition',    () => G.hexadd()],
+  patHex: ['Hex patterns',    () => G.pattern('hex')],
+  dec2hex:['Decimal → hex',   () => G.dec2hex()],
+  decbits:['Decimal → bits',  () => G.decbits()],
+  patDec: ['Decimal on sight', () => G.pattern('dec')],
+  make8:  ['Write 16–255',    () => G.make(16, 255)],
+  read8:  ['Read 8-bit',      () => G.read(16, 255)],
+  hex8:   ['Hex → binary',    () => G.hex()],
+  and4:   ['AND (4-bit)',     () => G.and(15)],
+  or4:    ['OR (4-bit)',      () => G.or(15)],
+  and:    ['AND',             () => G.and()],
+  or:     ['OR',              () => G.or()],
+  xor:    ['XOR',             () => G.xor()],
+  not:    ['NOT',             () => G.not()],
+  shl:    ['Shift left',      () => G.shl()],
+  shr:    ['Shift right',     () => G.shr()],
+  set:    ['Set bit',         () => G.set()],
+  clear:  ['Clear bit',       () => G.clear()],
+  toggle: ['Toggle bit',      () => G.toggle()],
+  test:   ['Test bit',        () => G.test()],
+  idiomB: ['Pick idiom: basics', () => G.idiom('basic')],
+  mask:   ['Build mask',      () => G.mask()],
+  extract:['Extract field',   () => G.extract()],
+  flags:  ['Flags',           () => G.flags()],
+  insert: ['Insert field',    () => G.insert()],
+  idiomF: ['Pick idiom: flags', () => G.idiom('flags')],
+  clrlow: ['x & (x-1)',       () => G.clrlow()],
+  lowbit: ['x & -x',          () => G.lowbit()],
+  idiomT: ['Pick idiom: tricks', () => G.idiom('tricks')],
+  combo:  ['Combined ops',    () => G.combo()],
+  idiom:  ['Pick idiom: all', () => G.idiom()],
+};
+const LEVELS = [
+  { id:'l1',  name:'Binary numbers', types:['make4','read4'],
+    intro:'Each bit is a power of two: bit 0 = 1, bit 1 = 2, bit 2 = 4, bit 3 = 8. A number is the sum of its 1-bits. 1101 = 8 + 4 + 1 = 13.' },
+  { id:'hd',  name:'Hex digits', types:['nib2bin','bin2nib','nibsum'],
+    intro:'One hex digit is exactly 4 bits (a nibble). Anchors: 1, 2, 4, 8 are single bits; F = 1111, 0 = 0000; A = 1010 and 5 = 0101 alternate. Every other digit is a sum: B = 8+2+1, 6 = 4+2.' },
+  { id:'l2',  name:'Bytes & hex', types:['make8','read8','hex8','bin2hex'],
+    intro:'8 bits make a byte (0–255). Bits 7..4 are worth 128, 64, 32, 16. Read hex one digit per nibble: 0xA6 = 1010 0110. Never convert the whole byte at once.' },
+  { id:'l3',  name:'AND & OR', types:['and4','or4','and','or'],
+    intro:'Compare column by column. AND: 1 only if both are 1 (keeps bits). OR: 1 if either is 1 (turns bits on).' },
+  { id:'l4',  name:'XOR & NOT', types:['xor','not'],
+    intro:'XOR: 1 where the bits differ (flips bits). NOT: inverts every bit. x ^ x = 0, and x ^ m ^ m = x.' },
+  { id:'hm',  name:'Thinking in hex', types:['hexop','hexadd','patHex'],
+    intro:'& | ^ work per hex digit: 0x0B | 0x03 is 0|0 and B|3 = B, the nibbles never touch. Addition is different: it carries at 16 from the low digit into the high one.' },
+  { id:'l5',  name:'Shifts', types:['shl','shr'],
+    intro:'x << k moves bits left, multiplying by 2^k; bits past the top are lost. x >> k moves them right, dividing by 2^k.' },
+  { id:'l6',  name:'Single bits', types:['set','clear','toggle','test','idiomB'],
+    intro:'1 << n is a mask with only bit n on. Set: x | (1<<n). Clear: x & ~(1<<n). Toggle: x ^ (1<<n). Read: (x >> n) & 1.' },
+  { id:'hr',  name:'Reading masks in code', types:['dec2hex','decbits','patDec'],
+    intro:'Decimal digits don\'t line up with bits. To read flags & 72: 72 = 64 + 8, so bits 6 and 3, which is 0x48. Know on sight: powers of two (one bit) and 15, 31, 63, 127, 255 (all lower bits set).' },
+  { id:'l7',  name:'Masks & fields', types:['mask','extract'],
+    intro:'A field [hi:lo] is a group of bits. (1 << w) − 1 gives w ones. Read a field with (x >> lo) & ((1 << w) − 1).' },
+  { id:'l8',  name:'Flags & read-modify-write', types:['flags','insert','idiomF'],
+    intro:'Flags give each option one bit. Combine with |, test with &, remove with & ~. Writing a field: clear it, then OR the new value in.' },
+  { id:'l9',  name:'Tricks', types:['clrlow','lowbit','idiomT'],
+    intro:'x & (x − 1) clears the lowest 1. x & −x isolates it. (x & (x − 1)) == 0 tests for a power of two.' },
+  { id:'l10', name:'Combined', types:['combo','idiom'],
+    intro:'Multi-step expressions: rotations, Gray code, nibble swaps, mask-then-shift. Work through them one operator at a time.' },
+];
+const LEVEL_OF = {}; LEVELS.forEach((l, i) => l.types.forEach(t => LEVEL_OF[t] = i));
+const levelIdx = id => Math.max(0, LEVELS.findIndex(l => l.id === id));
+// A level is open if the one before is mastered, or if this or any later level already has progress
+// (keeps existing players' access when new levels are inserted).
+const unlocked = i => S.unlockAll || i === 0 || !!S.mastered[LEVELS[i - 1].id] ||
+  LEVELS.slice(i).some(l => S.mastered[l.id] || (S.rec[l.id] || []).length);
+const recOf = i => S.rec[LEVELS[i].id] || [];
+const recScore = i => recOf(i).reduce((a, b) => a + b, 0);
+if (!unlocked(levelIdx(S.sel))) S.sel = 'l1';
+
+function record(type, ok) {
+  const k = dkey();
+  const d = S.days[k] || (S.days[k] = { a:0, c:0 });
+  const before = d.a;
+  d.a++; if (ok) d.c++;
+  const t = S.types[type] || (S.types[type] = { n:0, c:0, ema:0.5 });
+  t.n++; if (ok) t.c++;
+  t.ema = t.ema * 0.8 + (ok ? 0.2 : 0);
+  const li = LEVEL_OF[type], L = LEVELS[li];
+  const rec = (S.rec[L.id] = (S.rec[L.id] || []).concat(ok ? 1 : 0).slice(-10));
+  let msg = null;
+  if (!S.mastered[L.id] && rec.length >= 10 && recScore(li) >= 8) {
+    S.mastered[L.id] = 1;
+    const next = LEVELS[li + 1];
+    if (next && S.sel === L.id) { S.sel = next.id; msg = `Level ${li + 1} mastered · now: ${next.name}`; }
+    else msg = `Level ${li + 1} mastered`;
+  }
+  save();
+  if (msg) toast(msg);
+  else if (before < S.goal && d.a >= S.goal) toast('Daily goal reached');
+}
+
+let lastType = null;
+function candidateTypes() {
+  const si = levelIdx(S.sel);
+  if (blitz) return LEVELS.slice(0, si + 1).flatMap(l => l.types);
+  if (si > 0 && Math.random() < 0.25) return LEVELS.slice(0, si).filter((l, i) => unlocked(i)).flatMap(l => l.types);
+  return LEVELS[si].types;
+}
+function pickType() {
+  const types = candidateTypes();
+  const w = types.map(ty => {
+    const st = S.types[ty]; const ema = st ? st.ema : 0.5; const n = st ? st.n : 0;
+    let x = 0.25 + (1 - ema) + (n < 5 ? 0.5 : 0);
+    if (ty === lastType && types.length > 1) x *= 0.3;
+    return x;
+  });
+  let roll = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < types.length; i++) { roll -= w[i]; if (roll <= 0) return types[i]; }
+  return types[types.length - 1];
+}
+
+/* ---------- play ---------- */
+let q = null, input = 0, answered = false, mode = 'practice', blitz = null;
+
+function bitsHTML(v, ref, w = W) {
+  let s = '';
+  for (let i = w - 1; i >= 0; i--) {
+    const b = (v >> i) & 1, bad = ref !== undefined && (((ref >> i) & 1) !== b);
+    s += bad ? `<span class="b">${b}</span>` : b;
+    if (i === 4) s += ' ';
+  }
+  return s;
+}
+const showAlt = () => S.hints && !(q && q.noAlt && !answered);
+const qw = () => (q && q.width) || W;
+let hexIn = '';
+
+function newQ() {
+  const t = pickType(); lastType = t;
+  q = TYPES[t][1](); q.type = t; input = 0; hexIn = ''; answered = false;
+  const li = LEVEL_OF[t];
+  $('#qTag').textContent = `L${li + 1} · ${LEVELS[li].name}` + (LEVELS[li].id !== S.sel && !blitz ? ' · review' : '');
+  $('#qPrompt').textContent = q.prompt;
+  $('#qSub').textContent = q.sub || '';
+  $('#qSub').style.display = q.sub ? '' : 'none';
+  renderOps();
+  $('#qExpr').style.display = q.expr ? '' : 'none';
+  $('#qExpr').textContent = q.expr;
+  $('#fb').classList.remove('on');
+  $('#bitArea').style.display = q.kind === 'bits' ? '' : 'none';
+  $('#choiceArea').style.display = q.kind === 'choice' ? '' : 'none';
+  $('#hexArea').style.display = q.kind === 'hex' ? '' : 'none';
+  if (q.kind === 'bits') { buildGrid(); renderBits(); }
+  else if (q.kind === 'choice') $('#choiceArea').innerHTML = q.choices.map((c, i) => `<button class="choice${q.bigChoices ? ' big2' : ''}" data-i="${i}">${esc(c)}</button>`).join('');
+  else renderHex();
+  updateInfo();
+}
+function renderOps() {
+  $('#qOps').innerHTML = q.ops.map(([l, v]) =>
+    `<div class="op"><span class="lbl">${esc(l)}</span><span>${bin(v, qw())}</span>${showAlt() ? `<span class="alt">${alt(v)}</span>` : ''}</div>`).join('');
+}
+function renderBits(ref) {
+  for (const el of $('#bitGrid').children) {
+    if (!el.dataset.i) continue;
+    const i = +el.dataset.i, on = (input >> i) & 1;
+    el.textContent = on; el.classList.toggle('on', !!on);
+    el.classList.toggle('bad', ref !== undefined && (((ref >> i) & 1) !== on));
+  }
+  $('#readout').textContent = `= ${bin(input, qw())}` + (showAlt() ? ` · ${alt(input)}` : '');
+}
+function buildGrid() {
+  let idx = '', grid = '';
+  const w = qw();
+  for (let i = w - 1; i >= 0; i--) {
+    idx += S.hints ? `<div class="idx"><b>${i}</b><span>${1 << i}</span></div>` : `<div class="idx">${i}</div>`;
+    grid += `<button class="bit" data-i="${i}" aria-label="bit ${i}">0</button>`;
+    if (i === 4) { idx += '<div></div>'; grid += '<div></div>'; }
+  }
+  const cols = w === W ? '' : `repeat(${w},1fr)`;
+  for (const id of ['#bitIdx', '#bitGrid']) { $(id).style.gridTemplateColumns = cols; $(id).style.maxWidth = w === W ? '' : '60%'; $(id).style.marginLeft = $(id).style.marginRight = w === W ? '' : 'auto'; }
+  $('#bitIdx').innerHTML = idx; $('#bitGrid').innerHTML = grid;
+}
+function renderHex() {
+  let h = '<span class="px">0x</span>';
+  for (let i = 0; i < q.hexLen; i++) h += `<span class="slot${i === hexIn.length ? ' cur' : ''}">${hexIn[i] || '&nbsp;'}</span>`;
+  $('#hexDisp').innerHTML = h;
+}
+function hexKey(k) {
+  if (answered || q.kind !== 'hex') return;
+  if (k === 'del') hexIn = hexIn.slice(0, -1);
+  else if (hexIn.length < q.hexLen) hexIn += k.toUpperCase();
+  renderHex();
+}
+function buildKeypad() {
+  $('#keypad').innerHTML = [...'0123456789ABCDEF'].map(c => `<button class="key" data-k="${c}">${c}<small>${b4(parseInt(c, 16))}</small></button>`).join('');
+}
+
+function check(choice) {
+  if (answered) return;
+  if (q.kind === 'hex' && !hexIn) return;
+  answered = true;
+  const given = q.kind === 'hex' ? parseInt(hexIn, 16) : input;
+  const ok = q.kind === 'choice' ? choice === q.answer : given === q.answer;
+  record(q.type, ok);
+  if (blitz) { blitz.total++; if (ok) blitz.score++; }
+  const v = $('#verdict');
+  v.textContent = ok ? 'Correct' : 'Not quite';
+  v.className = 'verdict ' + (ok ? 'ok' : 'no');
+  let cmp = '';
+  renderOps();
+  const w = qw();
+  if (q.kind === 'bits') {
+    renderBits(q.answer);
+    if (!ok) cmp = `<div class="cmp"><span class="dim">yours  </span>${bitsHTML(input, q.answer, w)}</div><div class="cmp"><span class="dim">answer </span>${bin(q.answer, w)}${S.hints ? ` <span class="dim small">${alt(q.answer)}</span>` : ''}</div>`;
+  } else if (q.kind === 'hex') {
+    const bw = q.hexLen === 1 ? 4 : W;
+    if (!ok) cmp = `<div class="cmp"><span class="dim">yours  </span>${hexStr(given, q.hexLen)}  ${bitsHTML(given, q.answer, bw)}</div>`;
+    cmp += `<div class="cmp"><span class="dim">answer </span>${hexStr(q.answer, q.hexLen)}  ${bin(q.answer, bw)}${S.hints ? ` <span class="dim small">${q.answer}</span>` : ''}</div>`;
+  } else {
+    [...$('#choiceArea').children].forEach((el, i) => {
+      if (i === q.answer) el.classList.add('right');
+      else if (i === choice) el.classList.add('wrong');
+    });
+  }
+  $('#cmp').innerHTML = cmp;
+  const tr = $('#trace');
+  if (q.trace) {
+    tr.style.display = '';
+    const pad = Math.max(...q.trace.map(t => t[0].length));
+    tr.innerHTML = q.trace.map(([l, val, raw]) => {
+      const lbl = esc(l.padStart(pad));
+      return raw ? `<span class="l">${lbl}</span>  ${esc(val)}` : `<span class="l">${lbl}</span>  ${bin(val)}  <span class="a">${alt(val)}</span>`;
+    }).join('\n');
+  } else tr.style.display = 'none';
+  $('#note').textContent = q.note;
+  $('#fb').classList.add('on');
+  updateInfo();
+  if (blitz) setTimeout(() => { if (blitz && answered) newQ(); }, ok ? 450 : 2200);
+  else $('#fb').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function updateInfo() {
+  const si = levelIdx(S.sel);
+  $('#playInfo').textContent = blitz ? `score ${blitz.score}/${blitz.total}` :
+    `L${si + 1} ${recScore(si)}/10 · today ${today().a}/${S.goal}`;
+}
+
+function startPlay(m) {
+  mode = m; show('play');
+  if (m === 'blitz') {
+    blitz = { score:0, total:0, end: Date.now() + 60000 };
+    $('#nextBtn').style.display = 'none';
+    tick(); blitz.iv = setInterval(tick, 200);
+  } else { blitz = null; $('#timer').textContent = ''; $('#nextBtn').style.display = ''; }
+  newQ();
+}
+function tick() {
+  if (!blitz) return;
+  const left = Math.max(0, blitz.end - Date.now());
+  $('#timer').textContent = (left / 1000).toFixed(0) + 's';
+  if (left <= 0) endBlitz();
+}
+function endBlitz() {
+  clearInterval(blitz.iv);
+  const { score, total } = blitz; const best = score > S.best;
+  if (best) { S.best = score; save(); }
+  blitz = null; answered = true;
+  $('#timer').textContent = '';
+  $('#bitArea').style.display = 'none'; $('#choiceArea').style.display = 'none'; $('#hexArea').style.display = 'none';
+  $('#qTag').textContent = 'Blitz over';
+  $('#qPrompt').textContent = `${score} correct out of ${total}` + (best ? ' · new best' : '');
+  $('#qSub').style.display = 'none';
+  $('#qOps').innerHTML = ''; $('#qExpr').style.display = 'none';
+  $('#nextBtn').style.display = '';
+  $('#verdict').textContent = ''; $('#cmp').innerHTML = ''; $('#trace').style.display = 'none';
+  $('#note').textContent = `Best: ${S.best}. Blitz draws from all unlocked levels up to the selected one.`;
+  $('#fb').classList.add('on');
+  mode = 'done';
+}
+function stopPlay() { if (blitz) { clearInterval(blitz.iv); blitz = null; } show('home'); }
+
+/* ---------- views ---------- */
+function show(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.toggle('on', el.id === 'v-' + v));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v || (v === 'play' && b.dataset.v === 'home')));
+  document.querySelector('nav').style.display = v === 'play' ? 'none' : '';
+  if (v === 'home') renderHome();
+  if (v === 'stats') renderStats();
+  window.scrollTo(0, 0);
+}
+function renderHome() {
+  const d = today(), si = levelIdx(S.sel), L = LEVELS[si], sc = recScore(si), n = recOf(si).length;
+  $('#streak').textContent = streak();
+  $('#today').textContent = `${d.a}/${S.goal}`;
+  $('#todayBar').style.width = Math.min(100, 100 * d.a / S.goal) + '%';
+  $('#lvTag').textContent = `Level ${si + 1} of ${LEVELS.length}` + (S.mastered[L.id] ? ' · mastered' : '');
+  $('#lvName').textContent = L.name;
+  $('#lvIntro').textContent = L.intro;
+  $('#lvMastery').textContent = n ? `last ${n}: ${sc} correct` : 'not started';
+  $('#lvBar').style.width = (S.mastered[L.id] ? 100 : Math.min(100, 100 * sc / 8)) + '%';
+  $('#bestLine').textContent = S.best ? `Best blitz: ${S.best}` : '';
+  $('#levelList').innerHTML = LEVELS.map((l, i) => {
+    const un = unlocked(i), done = !!S.mastered[l.id], cur = l.id === S.sel;
+    const st = done ? 'done' : !un ? 'locked' : recOf(i).length ? `${recScore(i)}/10` : 'new';
+    return `<button class="lvl${cur ? ' cur' : ''}${done ? ' done' : ''}${un ? '' : ' locked'}" data-l="${l.id}" ${un ? '' : 'disabled'}>
+      <span class="num">${done && !cur ? '✓' : i + 1}</span><span class="nm">${esc(l.name)}</span><span class="st">${st}</span></button>`;
+  }).join('');
+  $('#hintsBtn').textContent = S.hints ? 'on' : 'off';
+  $('#hintsBtn').classList.toggle('on', S.hints);
+  $('#unlockBtn').textContent = S.unlockAll ? 'on' : 'off';
+  $('#unlockBtn').classList.toggle('on', S.unlockAll);
+  $('#goalSel').value = String(S.goal);
+}
+function renderStats() {
+  let days = '', mx = 1;
+  for (let i = 13; i >= 0; i--) mx = Math.max(mx, (S.days[dayBack(i)] || {a:0}).a);
+  for (let i = 13; i >= 0; i--) { const d = S.days[dayBack(i)] || { a:0 }; days += `<i class="${d.a >= S.goal ? 'met' : ''}" style="height:${Math.max(5, 100 * d.a / mx)}%" title="${dayBack(i)}: ${d.a}"></i>`; }
+  $('#days').innerHTML = days;
+  let rows = '<tr><th>Type</th><th class="n">Done</th><th class="n">All-time</th><th class="n">Recent</th></tr>';
+  LEVELS.forEach((l, li) => {
+    rows += `<tr><td colspan="4" style="color:var(--on);padding-top:12px">L${li + 1} · ${esc(l.name)}${S.mastered[l.id] ? ' ✓' : ''}</td></tr>`;
+    l.types.forEach(ty => {
+      const s = S.types[ty];
+      rows += `<tr><td>${esc(TYPES[ty][0])}</td><td class="n">${s ? s.n : 0}</td><td class="n">${s && s.n ? Math.round(100 * s.c / s.n) + '%' : '–'}</td><td class="n">${s && s.n ? Math.round(100 * s.ema) + '%' : '–'}</td></tr>`;
+    });
+  });
+  $('#statTable').innerHTML = rows;
+  $('#bestBlitz').textContent = S.best;
+  $('#totalAns').textContent = Object.values(S.days).reduce((a, d) => a + d.a, 0);
+}
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', 2600); }
+
+/* ---------- events ---------- */
+$('#bitGrid').addEventListener('click', e => {
+  const b = e.target.closest('.bit'); if (!b || answered) return;
+  input ^= 1 << +b.dataset.i; renderBits();
+});
+$('#choiceArea').addEventListener('click', e => { const b = e.target.closest('.choice'); if (b) check(+b.dataset.i); });
+buildKeypad();
+$('#keypad').addEventListener('click', e => { const k = e.target.closest('.key'); if (k) hexKey(k.dataset.k); });
+$('#hexDel').onclick = () => hexKey('del');
+$('#hexCheck').onclick = () => check();
+$('#clearBtn').onclick = () => { if (!answered) { input = 0; renderBits(); } };
+$('#checkBtn').onclick = () => check();
+$('#nextBtn').onclick = () => { if (mode === 'done') show('home'); else newQ(); };
+$('#quit').onclick = stopPlay;
+$('#goPractice').onclick = () => startPlay('practice');
+$('#goBlitz').onclick = () => startPlay('blitz');
+$('#levelList').addEventListener('click', e => {
+  const b = e.target.closest('.lvl'); if (!b || b.disabled) return;
+  S.sel = b.dataset.l; save(); renderHome();
+});
+$('#hintsBtn').onclick = () => { S.hints = !S.hints; save(); renderHome(); };
+$('#unlockBtn').onclick = () => { S.unlockAll = !S.unlockAll; if (!unlocked(levelIdx(S.sel))) S.sel = 'l1'; save(); renderHome(); };
+$('#goalSel').onchange = e => { S.goal = +e.target.value; save(); renderHome(); };
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => show(b.dataset.v));
+let resetArmed = false;
+$('#resetBtn').onclick = e => {
+  if (!resetArmed) { resetArmed = true; e.target.textContent = 'Tap again to erase everything'; setTimeout(() => { resetArmed = false; e.target.textContent = 'Reset all progress'; }, 3000); return; }
+  S = JSON.parse(JSON.stringify(DEF)); save(); resetArmed = false; e.target.textContent = 'Reset all progress'; renderStats(); toast('Progress reset');
+};
+document.addEventListener('keydown', e => {
+  if (!$('#v-play').classList.contains('on') || !q) return;
+  if (e.key === 'Enter') { e.preventDefault(); if (answered) $('#nextBtn').click(); else if (q.kind !== 'choice') check(); return; }
+  if (answered) return;
+  if (q.kind === 'hex') {
+    if (/^[0-9a-f]$/i.test(e.key)) hexKey(e.key);
+    else if (e.key === 'Backspace') hexKey('del');
+  } else if (q.kind === 'bits') {
+    if (/^[0-7]$/.test(e.key) && +e.key < qw()) { input ^= 1 << +e.key; renderBits(); }
+    else if (e.key === 'Backspace') { input = 0; renderBits(); }
+  } else {
+    const keys = q.choices.length === 2 ? (q.choices[0] === '0' ? '01' : '12') : '1234';
+    const i = keys.indexOf(e.key);
+    if (i >= 0 && i < q.choices.length) check(i);
+  }
+});
+
+show('home');
+try { if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {}
+
+})();
+</script>
+</body>
+</html>
